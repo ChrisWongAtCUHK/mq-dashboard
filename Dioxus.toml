@@ -1,0 +1,28 @@
+[application]
+name = "mq-dashboard"
+asset_dir = "assets"
+
+[web.config]
+index_html_template = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MQ Dashboard</title>
+</head>
+<body>
+    <div id="main"></div>
+</body>
+</html>
+"""
+
+[web.resource]
+style = []
+script = []
+
+# 這是 0.7 CLI 缺少的部分
+[web.watcher]
+watch_path = ["src", "assets"]
+reload_html = true
+
+[web.resource.dev]
+# 這裡可以留空，但結構必須存在
