@@ -59,6 +59,10 @@ fn App() -> Element {
     rsx! {
         document::Script { src: "https://cdn.tailwindcss.com" }
         div {
+            // 增加 flex 佈局與響應式規則
+            class: "min-h-screen bg-gray-100 flex flex-col lg:flex-row items-center lg:items-start justify-center p-8 gap-8",
+
+            // 主控制台卡片
             div {
                 class: "min-h-screen bg-gray-100 flex items-center justify-center p-4",
                 div { class: "max-w-md w-full bg-white rounded-xl shadow-lg p-8 space-y-6",
