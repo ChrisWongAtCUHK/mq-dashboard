@@ -59,63 +59,66 @@ fn App() -> Element {
     rsx! {
         document::Script { src: "https://cdn.tailwindcss.com" }
         div {
-            // 增加 flex 佈局與響應式規則
-            class: "min-h-screen bg-gray-100 flex flex-col lg:flex-row items-center lg:items-start justify-center p-8 gap-8",
+            // 修正 1: 去掉所有中間層的 min-h-screen，只在最外層保留一次
+            // 修正 2: 確保寬度撐滿 w-full，並在手機版預設 flex-col (上下排)
+            class: "min-h-screen w-full bg-gray-100 flex flex-col lg:flex-row items-center lg:items-start justify-center p-6 lg:p-12 gap-8",
+
 
             // 主控制台卡片
             div {
-                class: "min-h-screen bg-gray-100 flex items-center justify-center p-4",
-                div { class: "max-w-md w-full bg-white rounded-xl shadow-lg p-8 space-y-6",
-                    h1 { class: "text-2xl font-bold text-gray-800 text-center", "RabbitMQ 控制台" }
+                // 修正 3: 使用 flex-none 確保卡片不會被擠壓，w-full 確保寬度
+                class: "w-full max-w-md bg-white rounded-2xl shadow-xl p-8 space-y-6 flex-none",
+                h1 { class: "text-2xl font-bold text-gray-800 text-center", "RabbitMQ 控制台" }
 
-                    div {
-                        class: "space-y-2",
-                            label { class: "text-sm font-medium text-gray-600", "訊息內容" }
-                            input {
-                                class: "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all disabled:bg-gray-50 disabled:text-gray-400",
-                                placeholder: "輸入訊息...",
-                                disabled: is_loading(),  // 發送時也可以禁用輸入框，防止修改
-                                value: "{input_text}",
-                                oninput: move |evt| input_text.set(evt.value()),
-                                onkeydown: move |evt| {
-                                    if evt.key() == Key::Enter {
-                                        // 鍵盤事件需要手動 spawn
-                                        spawn(send_msg(()));
-                                    }
+                div { class: "space-y-2",
+                    label { class: "text-sm font-medium text-gray-600", "訊息內容" }
+                        input {
+                            class: "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all disabled:bg-gray-50",
+                            placeholder: "輸入訊息...",
+                            disabled: is_loading(),  // 發送時也可以禁用輸入框，防止修改
+                            value: "{input_text}",
+                            oninput: move |evt| input_text.set(evt.value()),
+                            onkeydown: move |evt| {
+                                if evt.key() == Key::Enter {
+                                    // 鍵盤事件需要手動 spawn
+                                    spawn(send_msg(()));
                                 }
                             }
-                    }
-                    button {
-                        // 動態樣式：發送時變灰色，平常是藍色
-                        class: format!(
-                            "w-full py-3 rounded-lg font-semibold text-white transition-all {} ",
-                            if is_loading() { "bg-gray-400 cursor-not-allowed" } else { "bg-blue-600 hover:bg-blue-700 active:transform active:scale-95" }
-                        ),
-                        disabled: is_loading(), // 根據 is_loading 禁用按鈕
-                        onclick: move |_| async move {
-                            send_msg(()).await;
-                        },
-                        if is_loading() { "處理中..." } else { "發送訊息" }
-                    }
-                    // 狀態顯示區
-                    div {
-                        class: format!(
-                            "p-4 rounded-lg text-sm font-mono {}",
-                            if msg_status().contains("錯誤") { "bg-red-50 text-red-600" } else { "bg-blue-50 text-blue-600" }
-                        ),
-                        "狀態: {msg_status}"
-                    }
+                        }
                 }
-                // 歷史紀錄卡片放在外面，與主卡片同級
-                if !history.read().is_empty() {
-                    div { class: "bg-white rounded-xl shadow-md p-6 animate-fade-in",
-                        h2 { class: "text-sm font-bold text-gray-500 uppercase tracking-wider mb-4", "最近發送紀錄" }
-                        ul { class: "divide-y divide-gray-100",
-                            for (i, msg) in history.read().iter().enumerate() {
-                                li { key: "{i}", class: "py-3 flex items-center justify-between",
-                                    span { class: "text-gray-700 font-medium", "{msg}" }
-                                    span { class: "text-xs bg-green-100 text-green-600 px-2 py-1 rounded", "成功" }
-                                }
+                button {
+                    // 動態樣式：發送時變灰色，平常是藍色
+                    class: format!(
+                        "w-full py-3 rounded-lg font-semibold text-white transition-all {} ",
+                        if is_loading() { "bg-gray-400 cursor-not-allowed" } else { "bg-blue-600 hover:bg-blue-700 active:scale-95" }
+                    ),
+                    disabled: is_loading(), // 根據 is_loading 禁用按鈕
+                    onclick: move |_| async move {
+                        send_msg(()).await;
+                    },
+                    if is_loading() { "處理中..." } else { "發送訊息" }
+                }
+                // 狀態顯示區
+                div {
+                    class: format!(
+                        "p-4 rounded-lg text-sm font-mono {}",
+                        if msg_status().contains("錯誤") { "bg-red-50 text-red-600" } else { "bg-blue-50 text-blue-600" }
+                    ),
+                    "狀態: {msg_status}"
+                }
+            }
+            // 歷史紀錄卡片放在外面，與主卡片同級
+            if !history.read().is_empty() {
+                div {
+                    // 修正 4: 手機版同樣撐滿 w-full，避免寬度不一造成視覺混亂
+                    class: "w-full max-w-md bg-white rounded-2xl shadow-lg p-6 animate-fade-in flex-none",
+                    h2 { class: "text-sm font-bold text-gray-500 uppercase tracking-wider mb-4", "最近發送紀錄" }
+                    ul { class: "divide-y divide-gray-100",
+                        for (i, msg) in history.read().iter().enumerate() {
+                            li { key: "{i}", class: "py-3 flex items-center justify-between gap-4",
+                                // 修正 5: break-words 防止超長訊息撐破版面
+                                span { class: "text-gray-700 font-medium break-words", "{msg}" }
+                                span { class: "shrink-0 text-xs bg-green-100 text-green-600 px-2 py-1 rounded", "成功" }
                             }
                         }
                     }
