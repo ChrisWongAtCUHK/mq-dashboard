@@ -1,5 +1,6 @@
 #![allow(non_snake_case)]
 use dioxus::prelude::*;
+use gloo_storage::{LocalStorage, Storage};
 
 fn main() {
     launch(App);
@@ -10,9 +11,17 @@ fn App() -> Element {
     let mut msg_status = use_signal(|| "等待發送...".to_string());
     let mut input_text = use_signal(|| "QuickTest".to_string());
     let mut is_loading = use_signal(|| false); // 這裡定義一個新的 state 來追蹤是否正在發送訊息
-    let mut history = use_signal(|| Vec::<String>::new()); // 新增歷史紀錄清單，儲存最近 5 筆
-                                                           // 將發送邏輯封裝成一個閉包，方便在按鈕和按鍵事件中重複使用
-                                                           // 這裡將參數類型顯式標註為 ()
+
+    // 初始化讀取
+    let mut history = use_signal(|| {
+        // 顯式標註泛型類型為 Vec<String>
+        match LocalStorage::get::<Vec<String>>("mq_history") {
+            // the function or associated item `get` exists for struct `LocalStorage`, but its trait bounds were not satisfied
+            Ok(data) => data,
+            Err(_) => Vec::new(), // 如果讀不到或格式不對，就給空 Vec
+        }
+    });
+
     let send_msg = move |_: ()| async move {
         // 在執行 await 之前，先將值取出，讓 read() 的借用立即結束
         let content = input_text.cloned();
@@ -39,6 +48,8 @@ fn App() -> Element {
                 if h.len() > 5 {
                     h.pop();
                 } // 只保留最近 5 筆
+                  // 使用 cloned() 獲取資料複本進行存檔
+                let _ = LocalStorage::set("mq_history", h.clone());
             }
             Err(e) => msg_status.set(format!("錯誤: {}", e)),
         }
