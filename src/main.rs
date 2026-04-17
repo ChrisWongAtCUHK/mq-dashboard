@@ -40,30 +40,52 @@ fn App() -> Element {
     };
 
     rsx! {
+        document::Script { src: "https://cdn.tailwindcss.com" }
         div {
-            h1 { "RabbitMQ 控制台" }
-            input {
-                // 發送時也可以禁用輸入框，防止修改
-                disabled: is_loading(),
-                value: "{input_text}",
-                oninput: move |evt| input_text.set(evt.value()),
-                onkeydown: move |evt| {
-                    if evt.key() == Key::Enter {
-                        // 鍵盤事件需要手動 spawn
-                        spawn(send_msg(()));
+            div {
+                class: "min-h-screen bg-gray-100 flex items-center justify-center p-4",
+                div { class: "max-w-md w-full bg-white rounded-xl shadow-lg p-8 space-y-6",
+                    h1 { class: "text-2xl font-bold text-gray-800 text-center", "RabbitMQ 控制台" }
+
+                    div {
+                        class: "space-y-2",
+                            label { class: "text-sm font-medium text-gray-600", "訊息內容" }
+                            input {
+                                class: "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all disabled:bg-gray-50 disabled:text-gray-400",
+                                placeholder: "輸入訊息...",
+                                disabled: is_loading(),  // 發送時也可以禁用輸入框，防止修改
+                                value: "{input_text}",
+                                oninput: move |evt| input_text.set(evt.value()),
+                                onkeydown: move |evt| {
+                                    if evt.key() == Key::Enter {
+                                        // 鍵盤事件需要手動 spawn
+                                        spawn(send_msg(()));
+                                    }
+                                }
+                            }
+                    }
+                    button {
+                        // 動態樣式：發送時變灰色，平常是藍色
+                        class: format!(
+                            "w-full py-3 rounded-lg font-semibold text-white transition-all {} ",
+                            if is_loading() { "bg-gray-400 cursor-not-allowed" } else { "bg-blue-600 hover:bg-blue-700 active:transform active:scale-95" }
+                        ),
+                        disabled: is_loading(), // 根據 is_loading 禁用按鈕
+                        onclick: move |_| async move {
+                            send_msg(()).await;
+                        },
+                        if is_loading() { "處理中..." } else { "發送訊息" }
+                    }
+                    // 狀態顯示區
+                    div {
+                        class: format!(
+                            "p-4 rounded-lg text-sm font-mono {}",
+                            if msg_status().contains("錯誤") { "bg-red-50 text-red-600" } else { "bg-blue-50 text-blue-600" }
+                        ),
+                        "狀態: {msg_status}"
                     }
                 }
             }
-            button {
-                // 根據 is_loading 禁用按鈕
-                disabled: is_loading(),
-                // 直接在 onclick 裡面定義 async move 塊是最穩定的做法
-                onclick: move |_| {
-                    spawn(send_msg(()));
-                },
-                "發送訊息"
-            }
-            p { "狀態: {msg_status}" }
         }
     }
 }
