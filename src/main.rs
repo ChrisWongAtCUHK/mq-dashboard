@@ -26,8 +26,10 @@ fn App() -> Element {
         is_loading.set(true);
         msg_status.set("發送中...".to_string());
 
-        // 在這裡使用 .clone()，這樣原本的 content 就能留給後面的 history 使用
-        match send_mq_rpc(content.clone()).await {
+        // 先 Clone 一份複本給 RPC
+        let rpc_content = content.clone();
+
+        match send_mq_rpc(rpc_content).await {
             Ok(res) => {
                 msg_status.set(res);
                 input_text.set("".to_string()); // 發送成功後清空輸入框
@@ -90,17 +92,16 @@ fn App() -> Element {
                         ),
                         "狀態: {msg_status}"
                     }
-
-                    // 歷史紀錄卡片
-                    if !history.read().is_empty() {
-                        div { class: "bg-white rounded-xl shadow-md p-6 animate-fade-in",
-                            h2 { class: "text-sm font-bold text-gray-500 uppercase tracking-wider mb-4", "最近發送紀錄" }
-                            ul { class: "divide-y divide-gray-100",
-                                for (i, msg) in history.read().iter().enumerate() {
-                                    li { key: "{i}", class: "py-3 flex items-center justify-between",
-                                        span { class: "text-gray-700 font-medium", "{msg}" }
-                                        span { class: "text-xs bg-green-100 text-green-600 px-2 py-1 rounded", "成功" }
-                                    }
+                }
+                // 歷史紀錄卡片放在外面，與主卡片同級
+                if !history.read().is_empty() {
+                    div { class: "bg-white rounded-xl shadow-md p-6 animate-fade-in",
+                        h2 { class: "text-sm font-bold text-gray-500 uppercase tracking-wider mb-4", "最近發送紀錄" }
+                        ul { class: "divide-y divide-gray-100",
+                            for (i, msg) in history.read().iter().enumerate() {
+                                li { key: "{i}", class: "py-3 flex items-center justify-between",
+                                    span { class: "text-gray-700 font-medium", "{msg}" }
+                                    span { class: "text-xs bg-green-100 text-green-600 px-2 py-1 rounded", "成功" }
                                 }
                             }
                         }
