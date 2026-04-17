@@ -1,13 +1,5 @@
 #![allow(non_snake_case)]
 use dioxus::prelude::*;
-use serde::{Deserialize, Serialize};
-
-// 定義與 Spring Boot 匹配的資料結構
-#[derive(Serialize, Deserialize, Debug, Clone)]
-struct MqMessage {
-    name: String,
-    content: String,
-}
 
 fn main() {
     launch(App);
