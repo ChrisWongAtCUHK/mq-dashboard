@@ -12,7 +12,7 @@ fn App() -> Element {
 
     // 將發送邏輯封裝成一個閉包，方便在按鈕和按鍵事件中重複使用
     // 這裡將參數類型顯式標註為 ()
-    let mut send_msg = move |_: ()| async move {
+    let send_msg = move |_: ()| async move {
         // 1. 在執行 await 之前，先將值取出，讓 read() 的借用立即結束
         let content = input_text.cloned();
 
