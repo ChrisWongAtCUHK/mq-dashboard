@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 # 升級到 0.6，這與你的 dx 0.7.5 較為相容
 dioxus = { version = "0.6", features = ["fullstack"] }
+chrono = "0.4"
 serde = { version = "1.0", features = ["derive"] }
 reqwest = { version = "0.12", features = ["json"] }                 # 順便升級 reqwest
 tracing = "0.1"

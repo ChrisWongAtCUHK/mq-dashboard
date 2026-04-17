@@ -1,6 +1,15 @@
 #![allow(non_snake_case)]
+use chrono::Local; // 用於獲取本地時間
 use dioxus::prelude::*;
 use gloo_storage::{LocalStorage, Storage};
+use serde::{Deserialize, Serialize};
+
+// 定義歷史紀錄的資料結構
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
+struct MessageItem {
+    content: String,
+    time: String,
+}
 
 fn main() {
     launch(App);
@@ -11,21 +20,21 @@ fn App() -> Element {
     let mut msg_status = use_signal(|| "等待發送...".to_string());
     let mut input_text = use_signal(|| "QuickTest".to_string());
     let mut is_loading = use_signal(|| false); // 這裡定義一個新的 state 來追蹤是否正在發送訊息
-    let mut history = use_signal(|| Vec::<String>::new()); // 先初始化為空向量
+    let mut history = use_signal(|| Vec::<MessageItem>::new()); // 先初始化為空向量
 
     // 使用 use_effect 在組件掛載後（僅在瀏覽器端執行）讀取資料
     use_effect(move || {
-        if let Ok(saved) = LocalStorage::get::<Vec<String>>("mq_history") {
+        if let Ok(saved) = LocalStorage::get::<Vec<MessageItem>>("mq_history") {
             history.set(saved);
         }
     });
 
     let send_msg = move |_: ()| async move {
         // 在執行 await 之前，先將值取出，讓 read() 的借用立即結束
-        let content = input_text.cloned();
+        let text = input_text.cloned();
 
         // 如果正在發送中或輸入框為空，則不執行
-        if is_loading() || content.is_empty() {
+        if is_loading() || text.is_empty() {
             return;
         }
 
@@ -34,15 +43,21 @@ fn App() -> Element {
         msg_status.set("發送中...".to_string());
 
         // 先 Clone 一份複本給 RPC
-        let rpc_content = content.clone();
+        let rpc_content = text.clone();
 
         match send_mq_rpc(rpc_content).await {
             Ok(res) => {
                 msg_status.set(res);
                 input_text.set("".to_string()); // 發送成功後清空輸入框
 
+                // 建立帶有時間戳記的物件
+                let new_item = MessageItem {
+                    content: text,
+                    time: Local::now().format("%H:%M:%S").to_string(), // 格式如 14:30:05
+                };
+
                 let mut h = history.write(); // 發送成功，將訊息加入歷史清單的最前面
-                h.insert(0, content); // use of moved value: `content` value used here after move
+                h.insert(0, new_item);
                 if h.len() > 5 {
                     h.pop();
                 } // 只保留最近 5 筆
@@ -123,17 +138,19 @@ fn App() -> Element {
                 }
             }
             // 歷史紀錄卡片放在外面，與主卡片同級
+            // 歷史紀錄顯示部分
             if !history.read().is_empty() {
-                div {
-                    // 修正 4: 手機版同樣撐滿 w-full，避免寬度不一造成視覺混亂
-                    class: "w-full max-w-md bg-white rounded-2xl shadow-lg p-6 animate-fade-in flex-none",
+                div { class: "w-full max-w-md bg-white rounded-xl shadow-md p-6 animate-fade-in flex-none",
                     h2 { class: "text-sm font-bold text-gray-500 uppercase tracking-wider mb-4", "最近發送紀錄" }
                     ul { class: "divide-y divide-gray-100",
-                        for (i, msg) in history.read().iter().enumerate() {
-                            li { key: "{i}", class: "py-3 flex items-center justify-between gap-4",
-                                // 修正 5: break-words 防止超長訊息撐破版面
-                                span { class: "text-gray-700 font-medium break-words", "{msg}" }
-                                span { class: "shrink-0 text-xs bg-green-100 text-green-600 px-2 py-1 rounded", "成功" }
+                        for (i, item) in history.read().iter().enumerate() {
+                            li { key: "{i}", class: "py-3 flex flex-col gap-1",
+                                div { class: "flex items-center justify-between",
+                                    span { class: "text-gray-800 font-medium break-words", "{item.content}" }
+                                    span { class: "shrink-0 text-[10px] bg-green-100 text-green-600 px-2 py-0.5 rounded", "成功" }
+                                }
+                                // 顯示時間戳記
+                                span { class: "text-[10px] text-gray-400 font-mono", "🕒 {item.time}" }
                             }
                         }
                     }
