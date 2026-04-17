@@ -49,7 +49,10 @@ fn App() -> Element {
                   // 使用 cloned() 獲取資料複本進行存檔
                 let _ = LocalStorage::set("mq_history", h.clone());
             }
-            Err(e) => msg_status.set(format!("錯誤: {}", e)),
+            Err(e) => {
+                // 失敗則保留輸入內容，僅更新狀態文字
+                msg_status.set(format!("發送失敗: {}", e));
+            }
         }
 
         // 結束發送：無論成功或失敗，都要把 loading 設回 false
@@ -101,10 +104,22 @@ fn App() -> Element {
                 // 狀態顯示區
                 div {
                     class: format!(
-                        "p-4 rounded-lg text-sm font-mono {}",
-                        if msg_status().contains("錯誤") { "bg-red-50 text-red-600" } else { "bg-blue-50 text-blue-600" }
+                        "p-4 rounded-xl text-sm font-medium transition-all border shadow-inner {}",
+                        if msg_status().contains("錯誤") || msg_status().contains("失敗") {
+                            "bg-red-50 text-red-600 border-red-200"
+                        } else if msg_status().contains("成功") {
+                            "bg-emerald-50 text-emerald-600 border-emerald-200"
+                        } else {
+                            "bg-blue-50 text-blue-600 border-blue-200"
+                        }
                     ),
-                    "狀態: {msg_status}"
+                    // 顯示內容
+                    span { class: "mr-2",
+                        if msg_status().contains("成功") { "🎉" }
+                        else if msg_status().contains("錯誤") || msg_status().contains("失敗") { "⚠️" }
+                        else { "ℹ️" }
+                    }
+                    "{msg_status}"
                 }
             }
             // 歷史紀錄卡片放在外面，與主卡片同級
@@ -144,15 +159,31 @@ async fn send_mq_rpc(msg: String) -> Result<String, ServerFnError> {
         .query(&params) // reqwest 會自動處理 URL 編碼 (URL Encoding)
         .send()
         .await
-        .map_err(|e| ServerFnError::new(format!("請求失敗: {}", e)))?;
+        .map_err(|e| {
+            // 處理連線層級的錯誤（例如：伺服器沒開、網址打錯）
+            if e.is_connect() {
+                ServerFnError::new("無法連線至 Spring Boot 伺服器，請檢查後端是否啟動。")
+            } else if e.is_timeout() {
+                ServerFnError::new("伺服器回應超時。")
+            } else {
+                ServerFnError::new(format!("網路請求異常: {}", e))
+            }
+        })?;
 
-    if response.status().is_success() {
-        let body = response.text().await.unwrap_or_default();
-        Ok(format!("發送成功: {}", body))
-    } else {
-        Err(ServerFnError::new(format!(
-            "伺服器錯誤: {}",
-            response.status()
-        )))
+    match response.status() {
+        s if s.is_success() => Ok(format!(
+            "成功！伺服器回應: {}",
+            response.text().await.unwrap_or_default()
+        )),
+        reqwest::StatusCode::NOT_FOUND => Err(ServerFnError::new(
+            "找不到該 API 路徑 (404)，請檢查 Spring Boot 路由。",
+        )),
+        reqwest::StatusCode::INTERNAL_SERVER_ERROR => Err(ServerFnError::new(
+            "Spring Boot 內部錯誤 (500)，可能是 RabbitMQ 連線失敗。",
+        )),
+        other => Err(ServerFnError::new(format!(
+            "伺服器回傳未預期狀態: {}",
+            other
+        ))),
     }
 }
