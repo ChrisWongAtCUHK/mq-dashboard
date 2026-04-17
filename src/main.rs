@@ -11,14 +11,12 @@ fn App() -> Element {
     let mut msg_status = use_signal(|| "等待發送...".to_string());
     let mut input_text = use_signal(|| "QuickTest".to_string());
     let mut is_loading = use_signal(|| false); // 這裡定義一個新的 state 來追蹤是否正在發送訊息
+    let mut history = use_signal(|| Vec::<String>::new()); // 先初始化為空向量
 
-    // 初始化讀取
-    let mut history = use_signal(|| {
-        // 顯式標註泛型類型為 Vec<String>
-        match LocalStorage::get::<Vec<String>>("mq_history") {
-            // the function or associated item `get` exists for struct `LocalStorage`, but its trait bounds were not satisfied
-            Ok(data) => data,
-            Err(_) => Vec::new(), // 如果讀不到或格式不對，就給空 Vec
+    // 使用 use_effect 在組件掛載後（僅在瀏覽器端執行）讀取資料
+    use_effect(move || {
+        if let Ok(saved) = LocalStorage::get::<Vec<String>>("mq_history") {
+            history.set(saved);
         }
     });
 
